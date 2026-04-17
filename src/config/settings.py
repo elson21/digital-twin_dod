@@ -22,6 +22,7 @@ from config.pv_config import PVConfig
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_CONFIG_PATH: Path = Path(__file__).parent / "user" / "simulation.json"
 
 # ---------------------------------------------------------------------------
 # Exceptions

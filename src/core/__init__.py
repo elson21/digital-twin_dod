@@ -3,6 +3,7 @@
 
 from core.registry import AssetRegistry
 from core.shm_manager import (
+    BESSControlBuffer,
     BESSSharedState,
     GensetSharedState,
     PVSharedState,
@@ -11,6 +12,7 @@ from core.shm_manager import (
 
 __all__ = [
     "AssetRegistry",
+    "BESSControlBuffer",
     "BESSSharedState",
     "GensetSharedState",
     "PVSharedState",

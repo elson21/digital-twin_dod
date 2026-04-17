@@ -20,6 +20,7 @@ from pathlib import Path
 from config.settings import MicrogridConfig, OperationMode, load_config
 from core.registry import AssetRegistry
 from core.shm_manager import (
+    BESSControlBuffer,
     BESSSharedState,
     GensetSharedState,
     PVSharedState,
@@ -51,6 +52,7 @@ class Supervisor:
         self._config: MicrogridConfig | None = None
         self._registry: AssetRegistry | None = None
         self._bess_states: dict[str, BESSSharedState] = {}
+        self._bess_controls: dict[str, BESSControlBuffer] = {}
         self._genset_states: dict[str, GensetSharedState] = {}
         self._pv_states: dict[str, PVSharedState] = {}
         self._workers: list[Process] = []
@@ -182,6 +184,15 @@ class Supervisor:
         """
         return self._bess_states[bess_id]
 
+    def set_load_current(self, bess_id: str, current_a: float) -> None:
+        """Update the load current setpoint for a BESS at runtime."""
+        self._bess_controls[bess_id].load_current_a = current_a
+        logger.info("BESS '%s' load current set to %.2f A", bess_id, current_a)
+
+    def get_load_current(self, bess_id: str) -> float:
+        """Read the current load current setpoint for a BESS."""
+        return self._bess_controls[bess_id].load_current_a
+
     def get_genset_state(self, genset_id: str) -> GensetSharedState:
         """Look up Genset shared state by ID.
 
@@ -216,6 +227,8 @@ class Supervisor:
         names: list[str] = []
         for state in self._bess_states.values():
             names.extend(state.buffer_names)
+        for ctrl in self._bess_controls.values():
+            names.extend(ctrl.buffer_names)
         for state in self._genset_states.values():
             names.extend(state.buffer_names)
         for state in self._pv_states.values():
@@ -234,11 +247,16 @@ class Supervisor:
             cfg = self._registry.get_bess(bess_id)
             state = BESSSharedState(cfg, create=True)
             self._bess_states[bess_id] = state
+            
+            ctrl = BESSControlBuffer(bess_id, create=True)
+            ctrl.load_current_a = cfg.load_current_a
+            self._bess_controls[bess_id] = ctrl
+            
             logger.info(
                 "Allocated SHM for BESS '%s': %d cells, %d buffers",
                 bess_id,
                 cfg.total_units,
-                len(state.buffer_names),
+                len(state.buffer_names) + len(ctrl.buffer_names),
             )
 
         for genset_id in self._registry.genset_ids:
@@ -265,6 +283,7 @@ class Supervisor:
         """Close and unlink all shared memory segments."""
         all_states = (
             list(self._bess_states.values())
+            + list(self._bess_controls.values())
             + list(self._genset_states.values())
             + list(self._pv_states.values())
         )
@@ -277,6 +296,7 @@ class Supervisor:
                 logger.warning("Error during SHM cleanup: %s", exc)
 
         self._bess_states.clear()
+        self._bess_controls.clear()
         self._genset_states.clear()
         self._pv_states.clear()
 

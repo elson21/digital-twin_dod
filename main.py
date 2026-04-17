@@ -15,6 +15,7 @@ from pathlib import Path
 # Ensure src/ is importable for the top-level supervisor module
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+from config.settings import DEFAULT_CONFIG_PATH
 from supervisor import Supervisor  # noqa: E402
 
 
@@ -26,14 +27,12 @@ def main() -> None:
         datefmt="%H:%M:%S",
     )
 
-    if len(sys.argv) < 2:
-        print(
-            "Usage: uv run python main.py <config_path>",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    if len(sys.argv) >= 2:
+        config_path = Path(sys.argv[1])
+    else:
+        config_path = DEFAULT_CONFIG_PATH
+        logging.getLogger(__name__).info("No config path provided, using default: %s", config_path)
 
-    config_path = Path(sys.argv[1])
     supervisor = Supervisor(config_path)
     supervisor.run()
 

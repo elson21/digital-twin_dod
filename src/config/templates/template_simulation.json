@@ -1,0 +1,27 @@
+{
+    "mode": "SIMULATION",
+    "bess_units": [
+        {
+            "bess_id": "BESS_01",
+            "num_strings": 5,
+            "packs_per_string": 26,
+            "cells_per_pack": 8,
+            "load_current_a": 100.0,
+            "manufacturer_metadata": {
+                "manufacturer": "EnergyCorp",
+                "model": "Gen2-Storage",
+                "firmware": "1.0.4"
+            },
+            "cell_spec": {
+                "name": "LFP_280Ah_Standard",
+                "nominal_voltage": 3.2,
+                "nominal_capacity": 280.0,
+                "nominal_current": 140.0,
+                "temperature_min": -20.0,
+                "temperature_max": 60.0
+            }
+        }
+    ],
+    "genset_units": [],
+    "pv_units": []
+}

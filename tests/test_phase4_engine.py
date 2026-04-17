@@ -214,6 +214,7 @@ class TestPhysicsIntegration:
             summary_rows = list(reader)
 
         assert len(summary_rows) >= 1, "Summary CSV has no data rows"
+        assert "load_current_a" in summary_rows[0]
         assert "total_voltage_v" in summary_rows[0]
         assert "mean_soc_pct" in summary_rows[0]
         assert "max_temp_c" in summary_rows[0]
@@ -243,3 +244,23 @@ class TestPhysicsIntegration:
         sup.shutdown()
         assert not sup.is_running
         assert len(sup.all_buffer_names) == 0
+
+    def test_runtime_current_switch(self) -> None:
+        """Switching load current via supervisor affects physics engine mid-run."""
+        sup = Supervisor(VALID_CONFIG_PATH)
+        try:
+            sup.start()
+            # Initial config has positive current (discharge).
+            # Let's set it to negative (charge)
+            sup.set_load_current("BESS_01", -50.0)
+            
+            sup.spawn_workers(dt=0.05, enable_db_writer=False)
+            time.sleep(1.5)
+
+            state = sup.get_bess_state("BESS_01")
+            mean_soc = float(np.mean(state.soc.array))
+
+            # SoC should increase from initial 80%
+            assert mean_soc > 80.0, f"Expected SoC > 80% (charging), got {mean_soc:.4f}%"
+        finally:
+            sup.shutdown()

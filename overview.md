@@ -24,7 +24,6 @@ The system must support two **modes**: `SIMULATION` (synthetic data) and `TWIN` 
 
 ## Current State
 
-### ✅ Phase 1 — Config + Registry (COMPLETE)
 
 | File | Status | Content |
 |---|---|---|
@@ -34,20 +33,20 @@ The system must support two **modes**: `SIMULATION` (synthetic data) and `TWIN` 
 | `src/config/settings.py` | ✅ Done | `OperationMode` enum, `MicrogridConfig` root model, `MissingConfigurationError`, `load_config()` |
 | `src/config/__init__.py` | ✅ Done | Re-exports all models, loader, exception, and enum |
 | `src/core/registry.py` | ✅ Done | `AssetRegistry` — discovers assets from config, lookup by ID, duplicate rejection |
-| `src/core/shm_manager.py` | ✅ Done | `SingleDataBuffer`, `BESSSharedState`, `GensetSharedState`, `PVSharedState` |
+| `src/core/shm_manager.py` | ✅ Done | `SingleDataBuffer`, `BESSSharedState`, `GensetSharedState`, `PVSharedState`, `BESSControlBuffer` |
 | `src/core/__init__.py` | ✅ Done | Re-exports `AssetRegistry` + all SHM classes |
 | `src/engine/physics.py` | ✅ Done | Vectorized `update_soc`, `update_voltage_from_soc`, `update_temperature` + process loop |
 | `src/engine/shadow_twin.py` | ✅ Stub | Interface documented for future PyBAMM integration |
 | `src/drivers/modbus_engine.py` | ✅ Stub | Interface documented for TWIN mode |
 | `src/drivers/canbus_driver.py` | ✅ Stub | Interface documented |
-| `src/services/db_writer.py` | ✅ Done | Asynchronous Observer: zero-intrusion SHM snapshots, batched CSV (summary + detail) |
+| `src/services/db_writer.py` | ✅ Done | Asynchronous Observer: zero-intrusion SHM snapshots, CSV validation, PLC header mapping |
 | `src/supervisor.py` | ✅ Done | Full lifecycle orchestrator with graceful shutdown |
-| `main.py` | ✅ Done | Entry point: `uv run python main.py <config_path>` |
+| `main.py` | ✅ Done | Entry point: `uv run python main.py [config_path]` (defaults to `simulation.json`) |
 | `tests/test_phase1_config.py` | ✅ Done | 21 tests — config loading, validation, registry |
 | `tests/test_phase2_shm.py` | ✅ Done | 18 tests — SHM primitives, cross-process IPC |
 | `tests/test_phase3_supervisor.py` | ✅ Done | 11 tests — supervisor lifecycle, SHM cleanup |
 | `tests/test_phase4_engine.py` | ✅ Done | 18 tests — physics math, integration pipeline, DB writer |
-| **Total** | | **105 tests passing** |
+| **Total** | | **106 tests passing** |
 
 ---
 

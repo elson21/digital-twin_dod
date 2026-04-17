@@ -31,7 +31,7 @@ import numpy as np
 
 from config.settings import load_config
 from core.registry import AssetRegistry
-from core.shm_manager import BESSSharedState
+from core.shm_manager import BESSControlBuffer, BESSSharedState
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 _SUMMARY_FIELDS: list[str] = [
     "timestamp",
     "bess_id",
+    "load_current_a",
     "total_voltage_v",
     "mean_soc_pct",
     "mean_soh_pct",
@@ -60,6 +61,56 @@ _DETAIL_FIELDS: list[str] = [
 ]
 
 _FLUSH_INTERVAL: int = 10  # Flush every N snapshots
+
+
+# ---------------------------------------------------------------------------
+# Output Verification
+# ---------------------------------------------------------------------------
+
+def _verify_output_dir(output_dir: Path) -> Path:
+    """Resolve, create, and verify the output directory is writable."""
+    resolved = output_dir.resolve()
+    resolved.mkdir(parents=True, exist_ok=True)
+    
+    probe = resolved / ".write_probe"
+    try:
+        probe.write_text("probe", encoding="utf-8")
+        probe.unlink()
+    except OSError as exc:
+        raise RuntimeError(
+            f"Output directory is not writable: {resolved}"
+        ) from exc
+    
+    logger.info("Output directory verified: %s", resolved)
+    return resolved
+
+def _verify_csv_headers(csv_path: Path, expected_fields: list[str]) -> bool:
+    """Check if an existing CSV file's headers match the expected PLC fields.
+    
+    Returns True if the file doesn't exist or headers match.
+    If headers mismatch, renames the old file to .bak and returns False.
+    """
+    if not csv_path.exists() or csv_path.stat().st_size == 0:
+        return True
+    
+    with open(csv_path, "r", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        try:
+            existing_headers = next(reader)
+        except StopIteration:
+            return True
+    
+    if existing_headers == expected_fields:
+        return True
+    
+    bak_path = csv_path.with_suffix(f".{int(time.time())}.bak")
+    csv_path.rename(bak_path)
+    logger.warning(
+        "CSV header mismatch in '%s' (expected %s, got %s). "
+        "Old file renamed to '%s'.",
+        csv_path.name, expected_fields, existing_headers, bak_path.name,
+    )
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -84,15 +135,18 @@ class _BESSWriterContext:
         self,
         bess_id: str,
         state: BESSSharedState,
+        ctrl: BESSControlBuffer,
         num_cells: int,
         output_dir: Path,
     ) -> None:
         self.bess_id = bess_id
         self.state = state
+        self.ctrl = ctrl
         self.num_cells = num_cells
 
         # --- Summary CSV (open once) ---
         summary_path = output_dir / f"{bess_id}_summary.csv"
+        _verify_csv_headers(summary_path, _SUMMARY_FIELDS)
         write_summary_header = not summary_path.exists() or summary_path.stat().st_size == 0
         self._summary_fh = open(summary_path, "a", newline="", encoding="utf-8")
         self.summary_writer = csv.writer(self._summary_fh)
@@ -103,6 +157,7 @@ class _BESSWriterContext:
 
         # --- Detail CSV (open once) ---
         detail_path = output_dir / f"{bess_id}_detail.csv"
+        _verify_csv_headers(detail_path, _DETAIL_FIELDS)
         write_detail_header = not detail_path.exists() or detail_path.stat().st_size == 0
         self._detail_fh = open(detail_path, "a", newline="", encoding="utf-8")
         self.detail_writer = csv.writer(self._detail_fh)
@@ -156,6 +211,7 @@ def _snapshot_bess(ctx: _BESSWriterContext, timestamp: str) -> None:
     ctx.summary_buffer.append([
         timestamp,
         ctx.bess_id,
+        f"{ctx.ctrl.load_current_a:.2f}",   # Runtime current setpoint
         f"{np.sum(v_local):.4f}",       # Total string voltage
         f"{np.mean(soc_local):.4f}",     # System-level SoC
         f"{np.mean(soh_local):.2f}",     # System-level SoH
@@ -203,16 +259,16 @@ def db_writer_loop(
     config = load_config(Path(config_path))
     registry = AssetRegistry(config)
 
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
+    output_path = _verify_output_dir(Path(output_dir))
 
     # --- Build per-BESS writer contexts ---
     contexts: list[_BESSWriterContext] = []
     for bess_id in registry.bess_ids:
         cfg = registry.get_bess(bess_id)
         state = BESSSharedState(cfg, create=False)
+        ctrl = BESSControlBuffer(bess_id, create=False)
         contexts.append(
-            _BESSWriterContext(bess_id, state, cfg.total_units, output_path)
+            _BESSWriterContext(bess_id, state, ctrl, cfg.total_units, output_path)
         )
 
     logger.info(
@@ -245,4 +301,5 @@ def db_writer_loop(
         for ctx in contexts:
             ctx.close()
             ctx.state.close()
+            ctx.ctrl.close()
         logger.info("DB writer stopped")

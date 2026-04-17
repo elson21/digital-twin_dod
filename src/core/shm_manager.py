@@ -213,6 +213,44 @@ class BESSSharedState(_SharedStateBase):
 
 
 # ---------------------------------------------------------------------------
+# BESS Control Buffer
+# ---------------------------------------------------------------------------
+
+
+class BESSControlBuffer(_SharedStateBase):
+    """Small control plane buffer for runtime-adjustable BESS parameters.
+
+    Layout (float64 array):
+        [0] load_current_a — system-level load current in amps.
+
+    The supervisor initialises this from config.  Any process can
+    update it at runtime to switch between charge/discharge.
+    """
+
+    IDX_LOAD_CURRENT: int = 0
+    _SIZE: int = 1
+
+    def __init__(self, bess_id: str, create: bool = False) -> None:
+        """Initialize BESS control buffer.
+
+        Args:
+            bess_id: Unique identifier for this BESS unit.
+            create: True to allocate new SHM, False to attach.
+        """
+        super().__init__()
+        self.control = self._register(f"{bess_id}_Ctrl", self._SIZE, np.float64, create)
+
+    @property
+    def load_current_a(self) -> float:
+        """Current load current setpoint in amps."""
+        return float(self.control.array[self.IDX_LOAD_CURRENT])
+
+    @load_current_a.setter
+    def load_current_a(self, value: float) -> None:
+        self.control.array[self.IDX_LOAD_CURRENT] = value
+
+
+# ---------------------------------------------------------------------------
 # Genset Shared State
 # ---------------------------------------------------------------------------
 
