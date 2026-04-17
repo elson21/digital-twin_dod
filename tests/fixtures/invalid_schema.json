@@ -1,0 +1,8 @@
+{
+    "mode": "SIMULATION",
+    "bess_units": [
+        {
+            "invalid_field": "this should fail validation"
+        }
+    ]
+}

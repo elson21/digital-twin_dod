@@ -1,0 +1,81 @@
+# src/config/bess_config.py
+"""BESS (Battery Energy Storage System) configuration models.
+
+Defines the Pydantic models for BESS topology validation, including
+cell-level specifications and system-level layout (strings, packs, cells).
+"""
+
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class CellConfig(BaseModel):
+    """Manufacturer specification for a single battery cell type.
+
+    Attributes:
+        name: Human-readable cell model identifier.
+        nominal_voltage: Nominal cell voltage in volts (V).
+        nominal_capacity: Rated capacity in ampere-hours (Ah).
+        nominal_current: Rated continuous current in amperes (A).
+        temperature_min: Minimum operating temperature in °C.
+        temperature_max: Maximum operating temperature in °C.
+    """
+
+    name: str
+    nominal_voltage: float
+    nominal_capacity: float
+    nominal_current: float
+    temperature_min: float
+    temperature_max: float
+
+
+class BESSConfig(BaseModel):
+    """Validated configuration for a single BESS unit.
+
+    Defines the physical topology (strings × packs × cells) and the
+    cell specification. Computed properties provide derived counts used
+    by the SHM Manager to size memory buffers.
+
+    Attributes:
+        bess_id: Unique identifier for this BESS unit.
+        num_strings: Number of parallel strings.
+        packs_per_string: Number of series packs per string.
+        cells_per_pack: Number of series cells per pack.
+        load_current_a: Applied load current in amperes.
+            Positive = discharge, negative = charge.
+        manufacturer_metadata: Freeform vendor metadata.
+        cell_spec: Cell-level electrical and thermal specification.
+    """
+
+    bess_id: str
+    num_strings: int = Field(gt=0)
+    packs_per_string: int = Field(gt=0)
+    cells_per_pack: int = Field(gt=0)
+    load_current_a: float
+    manufacturer_metadata: dict[str, Any]
+    cell_spec: CellConfig
+
+    @property
+    def total_strings(self) -> int:
+        """Total number of strings in this BESS."""
+        return self.num_strings
+
+    @property
+    def total_packs(self) -> int:
+        """Total number of packs across all strings."""
+        return self.num_strings * self.packs_per_string
+
+    @property
+    def total_cells(self) -> int:
+        """Total number of cells across all strings and packs."""
+        return self.num_strings * self.packs_per_string * self.cells_per_pack
+
+    @property
+    def total_units(self) -> int:
+        """Total number of fundamental units for SHM buffer allocation.
+
+        For BESS, the fundamental unit is the individual cell. This property
+        provides a consistent interface with GensetConfig and PVConfig.
+        """
+        return self.total_cells

@@ -1,0 +1,36 @@
+{
+    "mode": "SIMULATION",
+    "bess_units": [
+        {
+            "bess_id": "BESS_01",
+            "num_strings": 2,
+            "packs_per_string": 4,
+            "cells_per_pack": 12,
+            "load_current_a": 50.0,
+            "manufacturer_metadata": {
+                "manufacturer": "Samsung SDI",
+                "model": "ESS Module"
+            },
+            "cell_spec": {
+                "name": "Samsung SDI 94Ah",
+                "nominal_voltage": 3.68,
+                "nominal_capacity": 94.0,
+                "nominal_current": 94.0,
+                "temperature_min": -20.0,
+                "temperature_max": 55.0
+            }
+        }
+    ],
+    "genset_units": [
+        {
+            "genset_id": "GEN_01",
+            "num_units": 2
+        }
+    ],
+    "pv_units": [
+        {
+            "pv_id": "PV_01",
+            "num_units": 10
+        }
+    ]
+}
