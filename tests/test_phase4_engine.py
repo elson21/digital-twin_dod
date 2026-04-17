@@ -194,7 +194,7 @@ class TestPhysicsIntegration:
             sup.shutdown()
 
     def test_db_writer_creates_csv(self, tmp_path: Path) -> None:
-        """DB writer produces a CSV log file in the output directory."""
+        """DB writer produces summary and detail CSV logs."""
         sup = Supervisor(VALID_CONFIG_PATH)
         try:
             sup.start()
@@ -205,18 +205,33 @@ class TestPhysicsIntegration:
         finally:
             sup.shutdown()
 
-        # Check CSV was created
-        csv_file = tmp_path / "BESS_01_log.csv"
-        assert csv_file.exists(), "DB writer did not create CSV"
+        # --- Summary CSV ---
+        summary_csv = tmp_path / "BESS_01_summary.csv"
+        assert summary_csv.exists(), "DB writer did not create summary CSV"
 
-        # Check CSV has content
-        with open(csv_file, encoding="utf-8") as f:
+        with open(summary_csv, encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            rows = list(reader)
+            summary_rows = list(reader)
 
-        assert len(rows) >= 1, "CSV has no data rows"
-        assert "mean_soc_pct" in rows[0]
-        assert "mean_voltage_v" in rows[0]
+        assert len(summary_rows) >= 1, "Summary CSV has no data rows"
+        assert "total_voltage_v" in summary_rows[0]
+        assert "mean_soc_pct" in summary_rows[0]
+        assert "max_temp_c" in summary_rows[0]
+        assert "min_temp_c" in summary_rows[0]
+
+        # --- Detail CSV ---
+        detail_csv = tmp_path / "BESS_01_detail.csv"
+        assert detail_csv.exists(), "DB writer did not create detail CSV"
+
+        with open(detail_csv, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            detail_rows = list(reader)
+
+        assert len(detail_rows) >= 1, "Detail CSV has no data rows"
+        assert "cell_index" in detail_rows[0]
+        assert "voltage_v" in detail_rows[0]
+        assert "soc_pct" in detail_rows[0]
+        assert "temp_c" in detail_rows[0]
 
     def test_graceful_shutdown(self) -> None:
         """Workers stop cleanly when supervisor shuts down."""

@@ -15,7 +15,7 @@ A running multi-process system where:
 1. A **Supervisor** reads a JSON config, allocates shared memory, spawns workers, and manages lifecycle.
 2. A **Modbus/CAN Driver** (or a simulation stub) writes raw telemetry into SHM at 10–100 Hz.
 3. A **Physics Engine** reads telemetry from SHM, computes SoC/SoH/voltage via vectorized NumPy, and writes results back — all without copying data.
-4. A **DB Writer** periodically snapshots SHM and batch-inserts into a time-series database — without blocking the physics loop.
+4. An **Asynchronous Observer (DB Writer)** sits beside the physics engine, watching SHM through a one-way mirror. It copies cell-state arrays into process-local memory (``ndarray.copy()``), then performs slow CSV formatting on those local copies — never locking or blocking producers. It produces two output streams per BESS: a **Summary CSV** (PLC Dashboard metrics: total voltage, mean SoC, thermal extremes) and a **Detail CSV** (per-cell state).
 5. A **Shadow Twin** (PyBAMM) runs infrequent deep-fidelity simulations for health assessment.
 
 The system must support two **modes**: `SIMULATION` (synthetic data) and `TWIN` (real hardware via Modbus/CAN), selectable from config — and must **fail fast** with `MissingConfigurationError` if no valid config is provided.
@@ -40,7 +40,7 @@ The system must support two **modes**: `SIMULATION` (synthetic data) and `TWIN` 
 | `src/engine/shadow_twin.py` | ✅ Stub | Interface documented for future PyBAMM integration |
 | `src/drivers/modbus_engine.py` | ✅ Stub | Interface documented for TWIN mode |
 | `src/drivers/canbus_driver.py` | ✅ Stub | Interface documented |
-| `src/services/db_writer.py` | ✅ Done | Periodic SHM snapshots to CSV (non-blocking, own process) |
+| `src/services/db_writer.py` | ✅ Done | Asynchronous Observer: zero-intrusion SHM snapshots, batched CSV (summary + detail) |
 | `src/supervisor.py` | ✅ Done | Full lifecycle orchestrator with graceful shutdown |
 | `main.py` | ✅ Done | Entry point: `uv run python main.py <config_path>` |
 | `tests/test_phase1_config.py` | ✅ Done | 21 tests — config loading, validation, registry |
