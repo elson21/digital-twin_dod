@@ -29,6 +29,7 @@ from pathlib import Path
 
 import numpy as np
 
+from config.bess_config import BESSConfig
 from config.settings import load_config
 from core.registry import AssetRegistry
 from core.shm_manager import BESSControlBuffer, BESSSharedState
@@ -43,7 +44,8 @@ _SUMMARY_FIELDS: list[str] = [
     "timestamp",
     "bess_id",
     "load_current_a",
-    "total_voltage_v",
+    "system_voltage_v",
+    "string_voltages_v",
     "mean_soc_pct",
     "mean_soh_pct",
     "max_temp_c",
@@ -136,13 +138,14 @@ class _BESSWriterContext:
         bess_id: str,
         state: BESSSharedState,
         ctrl: BESSControlBuffer,
-        num_cells: int,
+        cfg: BESSConfig,
         output_dir: Path,
     ) -> None:
         self.bess_id = bess_id
         self.state = state
         self.ctrl = ctrl
-        self.num_cells = num_cells
+        self.cfg = cfg
+        self.num_cells = cfg.total_units
 
         # --- Summary CSV (open once) ---
         summary_path = output_dir / f"{bess_id}_summary.csv"
@@ -207,12 +210,23 @@ def _snapshot_bess(ctx: _BESSWriterContext, timestamp: str) -> None:
     soh_local: np.ndarray = ctx.state.soh.array.copy()
     temp_local: np.ndarray = ctx.state.temperature.array.copy()
 
+    # Zero-copy dimensionality reshaping on the local snapshot
+    topology_view = v_local.reshape(
+        ctx.cfg.num_strings, 
+        ctx.cfg.packs_per_string, 
+        ctx.cfg.cells_per_pack
+    )
+    pack_voltages = topology_view.sum(axis=2)
+    string_voltages = pack_voltages.sum(axis=1)
+    system_voltage = float(string_voltages.mean())
+
     # --- 2. Summary row (PLC Dashboard — vectorized reductions) ---
     ctx.summary_buffer.append([
         timestamp,
         ctx.bess_id,
         f"{ctx.ctrl.load_current_a:.2f}",   # Runtime current setpoint
-        f"{np.sum(v_local):.4f}",       # Total string voltage
+        f"{system_voltage:.4f}",       # System-level voltage
+        f"[{', '.join(f'{v:.2f}' for v in string_voltages)}]", # Per-string voltages
         f"{np.mean(soc_local):.4f}",     # System-level SoC
         f"{np.mean(soh_local):.2f}",     # System-level SoH
         f"{np.max(temp_local):.2f}",     # Thermal safety: max
@@ -268,7 +282,7 @@ def db_writer_loop(
         state = BESSSharedState(cfg, create=False)
         ctrl = BESSControlBuffer(bess_id, create=False)
         contexts.append(
-            _BESSWriterContext(bess_id, state, ctrl, cfg.total_units, output_path)
+            _BESSWriterContext(bess_id, state, ctrl, cfg, output_path)
         )
 
     logger.info(

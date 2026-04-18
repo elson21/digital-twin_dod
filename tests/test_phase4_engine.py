@@ -215,7 +215,8 @@ class TestPhysicsIntegration:
 
         assert len(summary_rows) >= 1, "Summary CSV has no data rows"
         assert "load_current_a" in summary_rows[0]
-        assert "total_voltage_v" in summary_rows[0]
+        assert "system_voltage_v" in summary_rows[0]
+        assert "string_voltages_v" in summary_rows[0]
         assert "mean_soc_pct" in summary_rows[0]
         assert "max_temp_c" in summary_rows[0]
         assert "min_temp_c" in summary_rows[0]
