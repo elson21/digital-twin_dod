@@ -251,6 +251,44 @@ class BESSControlBuffer(_SharedStateBase):
 
 
 # ---------------------------------------------------------------------------
+# BESS Update Buffer
+# ---------------------------------------------------------------------------
+
+
+class BESSUpdateBuffer(_SharedStateBase):
+    """Small update plane buffer for runtime-adjustable BESS macroscopic params.
+
+    Epoch-based lock-free synchronization.
+    Layout (structured array):
+        [bytes 0-7] epoch (int64)
+        [bytes 8-15] capacity_ah (float64)
+    """
+
+    def __init__(self, bess_id: str, create: bool = False) -> None:
+        super().__init__()
+        dt = np.dtype([("epoch", np.int64), ("capacity_ah", np.float64)])
+        self.update = self._register(f"{bess_id}_Upd", 1, dt, create)
+        if create:
+            self.epoch = 0
+
+    @property
+    def epoch(self) -> int:
+        return int(self.update.array["epoch"][0])
+
+    @epoch.setter
+    def epoch(self, value: int) -> None:
+        self.update.array["epoch"][0] = value
+
+    @property
+    def capacity_ah(self) -> float:
+        return float(self.update.array["capacity_ah"][0])
+
+    @capacity_ah.setter
+    def capacity_ah(self, value: float) -> None:
+        self.update.array["capacity_ah"][0] = value
+
+
+# ---------------------------------------------------------------------------
 # Genset Shared State
 # ---------------------------------------------------------------------------
 
