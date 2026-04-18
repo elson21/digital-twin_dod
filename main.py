@@ -19,6 +19,8 @@ from config.settings import DEFAULT_CONFIG_PATH
 from supervisor import Supervisor  # noqa: E402
 
 
+import argparse
+
 def main() -> None:
     """Parse arguments and run the supervisor."""
     logging.basicConfig(
@@ -27,10 +29,21 @@ def main() -> None:
         datefmt="%H:%M:%S",
     )
 
-    if len(sys.argv) >= 2:
-        config_path = Path(sys.argv[1])
-    else:
-        config_path = DEFAULT_CONFIG_PATH
+    parser = argparse.ArgumentParser(
+        description="Microgrid Digital Twin Orchestrator - High-Performance DOD implementation mapping PyBAMM heavily.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "config",
+        nargs="?",
+        default=DEFAULT_CONFIG_PATH,
+        type=Path,
+        help="Path to the system JSON configuration file.",
+    )
+    args = parser.parse_args()
+
+    config_path = args.config
+    if config_path == DEFAULT_CONFIG_PATH:
         logging.getLogger(__name__).info("No config path provided, using default: %s", config_path)
 
     supervisor = Supervisor(config_path)
