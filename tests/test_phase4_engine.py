@@ -148,7 +148,7 @@ class TestPhysicsIntegration:
         sup = Supervisor(VALID_CONFIG_PATH)
         try:
             sup.start()
-            sup.spawn_workers(dt=0.05, enable_db_writer=False)
+            sup.spawn_workers(dt=0.05, enable_db_writer=False, enable_shadow_twin=False)
 
             # Let physics run for ~1 second (≈20 ticks at 20 Hz)
             time.sleep(1.5)
@@ -166,7 +166,7 @@ class TestPhysicsIntegration:
         sup = Supervisor(VALID_CONFIG_PATH)
         try:
             sup.start()
-            sup.spawn_workers(dt=0.05, enable_db_writer=False)
+            sup.spawn_workers(dt=0.05, enable_db_writer=False, enable_shadow_twin=False)
             time.sleep(1.5)
 
             state = sup.get_bess_state("BESS_01")
@@ -182,7 +182,7 @@ class TestPhysicsIntegration:
         sup = Supervisor(VALID_CONFIG_PATH)
         try:
             sup.start()
-            sup.spawn_workers(dt=0.05, enable_db_writer=False)
+            sup.spawn_workers(dt=0.05, enable_db_writer=False, enable_shadow_twin=False)
             time.sleep(1.5)
 
             state = sup.get_bess_state("BESS_01")
@@ -199,7 +199,7 @@ class TestPhysicsIntegration:
         try:
             sup.start()
             sup.spawn_workers(
-                dt=0.05, db_output_dir=tmp_path, enable_db_writer=True
+                dt=0.05, db_output_dir=tmp_path, enable_db_writer=True, enable_shadow_twin=False
             )
             time.sleep(2.0)  # Let DB writer capture a few snapshots
         finally:
@@ -239,7 +239,7 @@ class TestPhysicsIntegration:
         """Workers stop cleanly when supervisor shuts down."""
         sup = Supervisor(VALID_CONFIG_PATH)
         sup.start()
-        sup.spawn_workers(dt=0.05, enable_db_writer=False)
+        sup.spawn_workers(dt=0.05, enable_db_writer=False, enable_shadow_twin=False)
         time.sleep(0.5)
 
         sup.shutdown()
@@ -255,7 +255,7 @@ class TestPhysicsIntegration:
             # Let's set it to negative (charge)
             sup.set_load_current("BESS_01", -50.0)
             
-            sup.spawn_workers(dt=0.05, enable_db_writer=False)
+            sup.spawn_workers(dt=0.05, enable_db_writer=False, enable_shadow_twin=False)
             time.sleep(1.5)
 
             state = sup.get_bess_state("BESS_01")

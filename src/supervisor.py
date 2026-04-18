@@ -101,6 +101,7 @@ class Supervisor:
         dt: float = 0.1,
         db_output_dir: Path | None = None,
         enable_db_writer: bool = True,
+        enable_shadow_twin: bool = True,
     ) -> None:
         """Spawn simulation worker processes.
 
@@ -111,6 +112,7 @@ class Supervisor:
             dt: Physics engine time step in seconds (default 0.1 = 10 Hz).
             db_output_dir: Directory for CSV output.  Defaults to ``output/``.
             enable_db_writer: Whether to spawn the DB writer process.
+            enable_shadow_twin: Whether to spawn the heavy PyBAMM shadow twin process.
         """
         if not self._running:
             raise RuntimeError("Supervisor not started. Call start() first.")
@@ -120,7 +122,7 @@ class Supervisor:
 
         if self._config.mode == OperationMode.SIMULATION:
             self._spawn_simulation_workers(
-                dt, db_output_dir or Path("output"), enable_db_writer
+                dt, db_output_dir or Path("output"), enable_db_writer, enable_shadow_twin
             )
 
     def shutdown(self) -> None:
@@ -315,9 +317,9 @@ class Supervisor:
     # ------------------------------------------------------------------
 
     def _spawn_simulation_workers(
-        self, dt: float, output_dir: Path, enable_db_writer: bool
+        self, dt: float, output_dir: Path, enable_db_writer: bool, enable_shadow_twin: bool
     ) -> None:
-        """Spawn physics engine and DB writer processes for SIMULATION mode."""
+        """Spawn physics engine, DB writer, and Shadow Twin processes for SIMULATION mode."""
         assert self._registry is not None
 
         for bess_id in self._registry.bess_ids:
@@ -353,6 +355,25 @@ class Supervisor:
             p.start()
             self._workers.append(p)
             logger.info("Spawned DB writer (pid=%d)", p.pid)
+
+        if enable_shadow_twin:
+            from engine.shadow_twin import shadow_twin_loop
+
+            for bess_id in self._registry.bess_ids:
+                p = Process(
+                    target=shadow_twin_loop,
+                    args=(
+                        str(self._config_path),
+                        bess_id,
+                        5.0,  # Shadow Twin updates every 5.0 seconds
+                        self._shutdown_event,
+                    ),
+                    name=f"shadow_{bess_id}",
+                    daemon=True,
+                )
+                p.start()
+                self._workers.append(p)
+                logger.info("Spawned PyBAMM Shadow Twin for BESS '%s' (pid=%d)", bess_id, p.pid)
 
     def _stop_workers(self) -> None:
         """Gracefully stop all worker processes."""
