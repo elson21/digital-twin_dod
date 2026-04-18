@@ -20,3 +20,7 @@
     - **Iteration Tracking:** Every significant architectural change or feature addition must be logged in `iterations.md`.
     - **Non-Blocking I/O:** Logging and database persistence must not block the high-frequency physics loop.
     - **Implementation Plan:** Always show the implementation plan before making any changes.
+6. **Version Control**
+    - **Implementation Plan:** Always show the implementation plan before making any changes.
+    - **Commit:** Commit after approval of code.
+    - **Commit Messages:** Commit messages must be in the format "feat: <description>" or "fix: <description>".

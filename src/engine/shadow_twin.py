@@ -6,7 +6,7 @@ high-fidelity electrochemical simulations (via PyBAMM) for
 State-of-Health (SoH) assessment.  It reads cell state from SHM,
 runs a full DAE solve, and writes updated SoH back.
 
-Unlike the fast-path physics engine (NumPy, 10–100 Hz), the shadow
+Unlike the fast-path physics engine (NumPy, 10-100 Hz), the shadow
 twin runs at much lower frequency (minutes to hours) and is
 computationally expensive.
 

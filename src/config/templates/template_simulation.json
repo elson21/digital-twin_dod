@@ -7,6 +7,11 @@
             "packs_per_string": 26,
             "cells_per_pack": 8,
             "load_current_a": 100.0,
+            "initial_state": {
+                "mode": "scalar",
+                "soc_pct": 80.0,
+                "voltage_v": 3.3
+            },
             "manufacturer_metadata": {
                 "manufacturer": "EnergyCorp",
                 "model": "Gen2-Storage",

@@ -1,13 +1,28 @@
 # src/config/bess_config.py
+
 """BESS (Battery Energy Storage System) configuration models.
 
 Defines the Pydantic models for BESS topology validation, including
 cell-level specifications and system-level layout (strings, packs, cells).
 """
 
-from typing import Any
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel, Field
+
+
+class ScalarInit(BaseModel):
+    mode: Literal["scalar"] = "scalar"
+    soc_pct: float = Field(ge=0, le=100, default=80.0)
+    voltage_v: float = Field(ge=0, default=3.3)
+
+
+class DistributionInit(BaseModel):
+    mode: Literal["distribution"] = "distribution"
+    soc_mean: float = Field(ge=0, le=100, default=80.0)
+    soc_std: float = 2.0
+    voltage_mean: float = 3.3
+    voltage_std: float = 0.05
 
 
 class CellConfig(BaseModel):
@@ -33,7 +48,7 @@ class CellConfig(BaseModel):
 class BESSConfig(BaseModel):
     """Validated configuration for a single BESS unit.
 
-    Defines the physical topology (strings × packs × cells) and the
+    Defines the physical topology (strings * packs * cells) and the
     cell specification. Computed properties provide derived counts used
     by the SHM Manager to size memory buffers.
 
@@ -55,6 +70,9 @@ class BESSConfig(BaseModel):
     load_current_a: float
     manufacturer_metadata: dict[str, Any]
     cell_spec: CellConfig
+    initial_state: Union[ScalarInit, DistributionInit] = Field(
+        default_factory=ScalarInit, discriminator="mode"
+    )
 
     @property
     def total_strings(self) -> int:

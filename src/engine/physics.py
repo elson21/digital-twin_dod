@@ -129,10 +129,27 @@ def bess_physics_loop(
     cell_current = ctrl.load_current_a / bess_cfg.num_strings
 
     # Initialize state arrays
-    state.soc.array[:] = initial_soc
+    init_state = bess_cfg.initial_state
+
+    if init_state.mode == "scalar":
+        state.soc.array[:] = init_state.soc_pct
+        state.voltages.array[:] = init_state.voltage_v
+    elif init_state.mode == "distribution":
+        state.soc.array[:] = np.random.normal(
+            loc=init_state.soc_mean,
+            scale=init_state.soc_std,
+            size=state.soc.array.shape,
+        )
+        state.voltages.array[:] = np.random.normal(
+            loc=init_state.voltage_mean,
+            scale=init_state.voltage_std,
+            size=state.voltages.array.shape,
+        )
+        np.clip(state.soc.array, 0.0, 100.0, out=state.soc.array)
+        np.clip(state.voltages.array, 2.5, 4.2, out=state.voltages.array)
+
     state.soh.array[:] = 100.0
     state.temperature.array[:] = np.float32(ambient := 25.0)
-    update_voltage_from_soc(state.voltages.array, state.soc.array)
 
     logger.info(
         "Physics engine started for BESS '%s' | dt=%.3fs | I_cell=%.2fA | C=%.1fAh",
