@@ -25,3 +25,6 @@
     - **Commit:** Commit after approval of code.
     - **Commit Messages:** Commit messages must be concise.
     - **Patch Notes:** Update patch notes after each commit. If patch_notes.md does not exist, create it.
+7. **Testing**
+    - **Unit Tests:** Create unit tests for each function that requires it.
+    - **Testing:** Always run the unit tests after making any changes.

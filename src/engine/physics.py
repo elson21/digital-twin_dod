@@ -106,6 +106,32 @@ def apply_cc_cv_throttling(
     current[:] = np.where(current < 0, current * throttle_factor, current)
 
 
+def aggregate_voltages(
+    voltages: np.ndarray,
+    num_strings: int,
+    packs_per_string: int,
+    cells_per_pack: int,
+) -> tuple[np.ndarray, np.ndarray, float]:
+    """Calculates hierarchical voltages via zero-copy reshaping.
+    
+    Cells are summed to form packs; packs are summed to form strings;
+    strings are averaged to represent system voltage.
+    """
+    # Zero-copy O(1) dimensionality reshaping
+    topology_view = voltages.reshape(num_strings, packs_per_string, cells_per_pack)
+    
+    # Sum cells in series -> pack voltages
+    pack_voltages = topology_view.sum(axis=2)
+    
+    # Sum packs in series -> string voltages
+    string_voltages = pack_voltages.sum(axis=1)
+    
+    # Parallel strings define average system bus voltage
+    system_voltage = float(string_voltages.mean())
+    
+    return pack_voltages, string_voltages, system_voltage
+
+
 # ---------------------------------------------------------------------------
 # Process entry point
 # ---------------------------------------------------------------------------
@@ -191,6 +217,19 @@ def bess_physics_loop(
             update_temperature(
                 state.temperature.array, current_array, dt, ambient=ambient_target
             )
+            
+            # Hierarchical aggregation
+            pack_v, string_v, sys_v = aggregate_voltages(
+                state.voltages.array,
+                bess_cfg.num_strings,
+                bess_cfg.packs_per_string,
+                bess_cfg.cells_per_pack,
+            )
+            logger.debug(
+                "System Voltage for BESS '%s': %.2fV (Strings: %s)",
+                bess_id, sys_v, string_v
+            )
+
             shutdown_event.wait(timeout=dt)
     except Exception as exc:
         logger.error("Physics engine error for BESS '%s': %s", bess_id, exc)
