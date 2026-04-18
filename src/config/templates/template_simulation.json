@@ -9,7 +9,6 @@
             "load_current_a": -100.0,
             "initial_state": {
                 "mode": "scalar",
-                "soc_pct": 80.0,
                 "voltage_v": 3.3,
                 "temperature_c": 25.0
             },

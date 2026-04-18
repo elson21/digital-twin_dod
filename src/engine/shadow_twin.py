@@ -41,7 +41,7 @@ def shadow_twin_loop(
     logger.info("Initializing PyBAMM SPMe for BESS '%s'", bess_id)
     
     # Simple SPM with electrolyte and SEI degradation mechanism
-    model = pybamm.lithium_ion.SPMe({"SEI": "ecumenic"})
+    model = pybamm.lithium_ion.SPMe({"SEI": "ec reaction limited"})
     parameter_values = pybamm.ParameterValues("Chen2020")
     
     # Initialize simulation with Casadi solver for fast execution
@@ -67,7 +67,7 @@ def shadow_twin_loop(
 
             # 3. Extract Degradation Parameter
             sol = sim.solution
-            new_capacity = float(sol["Capacity [A.h]"].entries[-1])
+            new_capacity = float(sol["Total lithium capacity [A.h]"].entries[-1])
 
             # 4. Lock-Free Buffer Update
             update_buffer.capacity_ah = new_capacity

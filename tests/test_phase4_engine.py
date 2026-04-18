@@ -156,8 +156,8 @@ class TestPhysicsIntegration:
             state = sup.get_bess_state("BESS_01")
             mean_soc = float(np.mean(state.soc.array))
 
-            # SoC should have been initialized to 80% and decreased
-            assert 0 < mean_soc < 80.0, f"Expected SoC < 80%, got {mean_soc:.4f}%"
+            # SoC should have been initialized to ~47.058% and decreased
+            assert 0 < mean_soc < 47.1, f"Expected SoC < 47.1%, got {mean_soc:.4f}%"
         finally:
             sup.shutdown()
 
@@ -261,7 +261,7 @@ class TestPhysicsIntegration:
             state = sup.get_bess_state("BESS_01")
             mean_soc = float(np.mean(state.soc.array))
 
-            # SoC should increase from initial 80%
-            assert mean_soc > 80.0, f"Expected SoC > 80% (charging), got {mean_soc:.4f}%"
+            # SoC should increase from initial ~47.058%
+            assert mean_soc > 47.0, f"Expected SoC > 47.0% (charging), got {mean_soc:.4f}%"
         finally:
             sup.shutdown()

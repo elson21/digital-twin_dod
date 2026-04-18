@@ -69,6 +69,20 @@ def update_voltage_from_soc(
     voltage[:] = v_min + (v_max - v_min) * (soc / 100.0)
 
 
+def inverse_soc_from_voltage(
+    soc: np.ndarray,
+    voltage: np.ndarray,
+    v_min: float = 2.5,
+    v_max: float = 4.2,
+) -> None:
+    """Calculates SoC backwards from voltage (vectorized, in-place).
+    
+    Inverse of the linear OCV model: SoC = f(Voltage).
+    """
+    soc[:] = ((voltage - v_min) / (v_max - v_min)) * 100.0
+    np.clip(soc, 0.0, 100.0, out=soc)
+
+
 def update_temperature(
     temperature: np.ndarray,
     cell_current: float,
@@ -173,16 +187,10 @@ def bess_physics_loop(
     init_state = bess_cfg.initial_state
 
     if init_state.mode == "scalar":
-        state.soc.array[:] = init_state.soc_pct
         state.voltages.array[:] = init_state.voltage_v
         state.temperature.array[:] = init_state.temperature_c
         ambient_target = init_state.temperature_c
     elif init_state.mode == "distribution":
-        state.soc.array[:] = np.random.normal(
-            loc=init_state.soc_mean,
-            scale=init_state.soc_std,
-            size=state.soc.array.shape,
-        )
         state.voltages.array[:] = np.random.normal(
             loc=init_state.voltage_mean,
             scale=init_state.voltage_std,
@@ -193,9 +201,11 @@ def bess_physics_loop(
             scale=init_state.temperature_std,
             size=state.temperature.array.shape,
         )
-        np.clip(state.soc.array, 0.0, 100.0, out=state.soc.array)
         np.clip(state.voltages.array, 2.5, 4.2, out=state.voltages.array)
         ambient_target = init_state.temperature_mean
+
+    # Derive SoC from the generated mathematically generated voltages mathematically
+    inverse_soc_from_voltage(state.soc.array, state.voltages.array)
 
     state.soh.array[:] = 100.0
 
