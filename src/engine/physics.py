@@ -91,6 +91,21 @@ def update_temperature(
     temperature[:] += delta
 
 
+def apply_cc_cv_throttling(
+    current: np.ndarray,
+    voltage: np.ndarray,
+    v_max: float = 4.2,
+    taper_band: float = 0.05,
+) -> None:
+    """Applies Constant-Current / Constant-Voltage charging factor in-place.
+    
+    Uses mathematical vector operations to throttle charging (negative) current
+    as cell voltage approaches v_max linearly within the taper_band.
+    """
+    throttle_factor = np.clip((v_max - voltage) / taper_band, 0.0, 1.0)
+    current[:] = np.where(current < 0, current * throttle_factor, current)
+
+
 # ---------------------------------------------------------------------------
 # Process entry point
 # ---------------------------------------------------------------------------
@@ -101,7 +116,6 @@ def bess_physics_loop(
     bess_id: str,
     dt: float,
     shutdown_event: multiprocessing.Event,
-    initial_soc: float = 80.0,
 ) -> None:
     """Physics engine process entry point for a single BESS.
 
@@ -134,6 +148,8 @@ def bess_physics_loop(
     if init_state.mode == "scalar":
         state.soc.array[:] = init_state.soc_pct
         state.voltages.array[:] = init_state.voltage_v
+        state.temperature.array[:] = init_state.temperature_c
+        ambient_target = init_state.temperature_c
     elif init_state.mode == "distribution":
         state.soc.array[:] = np.random.normal(
             loc=init_state.soc_mean,
@@ -145,11 +161,16 @@ def bess_physics_loop(
             scale=init_state.voltage_std,
             size=state.voltages.array.shape,
         )
+        state.temperature.array[:] = np.random.normal(
+            loc=init_state.temperature_mean,
+            scale=init_state.temperature_std,
+            size=state.temperature.array.shape,
+        )
         np.clip(state.soc.array, 0.0, 100.0, out=state.soc.array)
         np.clip(state.voltages.array, 2.5, 4.2, out=state.voltages.array)
+        ambient_target = init_state.temperature_mean
 
     state.soh.array[:] = 100.0
-    state.temperature.array[:] = np.float32(ambient := 25.0)
 
     logger.info(
         "Physics engine started for BESS '%s' | dt=%.3fs | I_cell=%.2fA | C=%.1fAh",
@@ -159,13 +180,16 @@ def bess_physics_loop(
         capacity_ah,
     )
 
+    current_array = np.empty(state.soc.array.shape, dtype=np.float64)
+
     try:
         while not shutdown_event.is_set():
-            cell_current = ctrl.load_current_a / bess_cfg.num_strings
-            update_soc(state.soc.array, cell_current, dt, capacity_ah)
+            current_array[:] = ctrl.load_current_a / bess_cfg.num_strings
+            apply_cc_cv_throttling(current_array, state.voltages.array, v_max=4.2, taper_band=0.05)
+            update_soc(state.soc.array, current_array, dt, capacity_ah)
             update_voltage_from_soc(state.voltages.array, state.soc.array)
             update_temperature(
-                state.temperature.array, cell_current, dt, ambient=ambient
+                state.temperature.array, current_array, dt, ambient=ambient_target
             )
             shutdown_event.wait(timeout=dt)
     except Exception as exc:

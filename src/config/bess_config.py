@@ -15,6 +15,7 @@ class ScalarInit(BaseModel):
     mode: Literal["scalar"] = "scalar"
     soc_pct: float = Field(ge=0, le=100, default=80.0)
     voltage_v: float = Field(ge=0, default=3.3)
+    temperature_c: float = Field(ge=-273.15, default=25.0)
 
 
 class DistributionInit(BaseModel):
@@ -23,6 +24,8 @@ class DistributionInit(BaseModel):
     soc_std: float = 2.0
     voltage_mean: float = 3.3
     voltage_std: float = 0.05
+    temperature_mean: float = 25.0
+    temperature_std: float = 2.0
 
 
 class CellConfig(BaseModel):

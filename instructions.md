@@ -23,4 +23,5 @@
 6. **Version Control**
     - **Implementation Plan:** Always show the implementation plan before making any changes.
     - **Commit:** Commit after approval of code.
-    - **Commit Messages:** Commit messages must be in the format "feat: <description>" or "fix: <description>".
+    - **Commit Messages:** Commit messages must be concise.
+    - **Patch Notes:** Update patch notes after each commit. If patch_notes.md does not exist, create it.
