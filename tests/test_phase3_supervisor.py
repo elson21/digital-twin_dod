@@ -52,8 +52,8 @@ class TestSupervisorLifecycle:
         sup = Supervisor(VALID_CONFIG_PATH)
         try:
             sup.start()
-            # BESS: 4 state + 1 control = 5 buffers. Genset + PV = 13. Total = 18.
-            assert len(sup.all_buffer_names) == 18
+            # BESS: 4 state buffers + 1 control buffer + 1 update buffer + Genset: 7 buffers + PV: 6 buffers = 19
+            assert len(sup.all_buffer_names) == 19
         finally:
             sup.shutdown()
 
@@ -147,7 +147,7 @@ class TestSupervisorCleanup:
         sup = Supervisor(VALID_CONFIG_PATH)
         sup.start()
         names = sup.all_buffer_names.copy()
-        assert len(names) == 18
+        assert len(names) == 19
 
         sup.shutdown()
 

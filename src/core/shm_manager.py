@@ -248,6 +248,43 @@ class BESSControlBuffer(_SharedStateBase):
     @load_current_a.setter
     def load_current_a(self, value: float) -> None:
         self.control.array[self.IDX_LOAD_CURRENT] = value
+# ---------------------------------------------------------------------------
+# BESS Epoch Variable Buffer (Shadow Twin updates capacity_ah lock-free)
+# ---------------------------------------------------------------------------
+
+class BESSUpdateBuffer(_SharedStateBase):
+    """Holds macroscopic parameter updates natively synchronized lock-free!
+    
+    Layout (float64 array):
+        [0] epoch - Increment counter flagging hot-path logic parameters synced.
+        [1] capacity_ah - Degraded global capacity metric per cell constraints.
+    """
+    
+    IDX_EPOCH: int = 0
+    IDX_CAPACITY_AH: int = 1
+    _SIZE: int = 2
+
+    def __init__(self, bess_id: str, create: bool = False) -> None:
+        super().__init__()
+        self.update = self._register(f"{bess_id}_Update", self._SIZE, np.float64, create)
+        if create:
+            self.epoch = 0.0
+
+    @property
+    def epoch(self) -> float:
+        return float(self.update.array[self.IDX_EPOCH])
+
+    @epoch.setter
+    def epoch(self, value: float) -> None:
+        self.update.array[self.IDX_EPOCH] = value
+
+    @property
+    def capacity_ah(self) -> float:
+        return float(self.update.array[self.IDX_CAPACITY_AH])
+
+    @capacity_ah.setter
+    def capacity_ah(self, value: float) -> None:
+        self.update.array[self.IDX_CAPACITY_AH] = value
 
 
 # ---------------------------------------------------------------------------

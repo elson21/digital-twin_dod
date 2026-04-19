@@ -22,6 +22,7 @@ from core.registry import AssetRegistry
 from core.shm_manager import (
     BESSControlBuffer,
     BESSSharedState,
+    BESSUpdateBuffer,
     GensetSharedState,
     PVSharedState,
 )
@@ -53,6 +54,7 @@ class Supervisor:
         self._registry: AssetRegistry | None = None
         self._bess_states: dict[str, BESSSharedState] = {}
         self._bess_controls: dict[str, BESSControlBuffer] = {}
+        self._bess_updates: dict[str, BESSUpdateBuffer] = {}
         self._genset_states: dict[str, GensetSharedState] = {}
         self._pv_states: dict[str, PVSharedState] = {}
         self._workers: list[Process] = []
@@ -229,6 +231,8 @@ class Supervisor:
             names.extend(state.buffer_names)
         for ctrl in self._bess_controls.values():
             names.extend(ctrl.buffer_names)
+        for upd in self._bess_updates.values():
+            names.extend(upd.buffer_names)
         for state in self._genset_states.values():
             names.extend(state.buffer_names)
         for state in self._pv_states.values():
@@ -252,11 +256,15 @@ class Supervisor:
             ctrl.load_current_a = cfg.load_current_a
             self._bess_controls[bess_id] = ctrl
             
+            upd = BESSUpdateBuffer(bess_id, create=True)
+            upd.capacity_ah = cfg.cell_spec.nominal_capacity
+            self._bess_updates[bess_id] = upd
+            
             logger.info(
                 "Allocated SHM for BESS '%s': %d cells, %d buffers",
                 bess_id,
                 cfg.total_units,
-                len(state.buffer_names) + len(ctrl.buffer_names),
+                len(state.buffer_names) + len(ctrl.buffer_names) + len(upd.buffer_names),
             )
 
         for genset_id in self._registry.genset_ids:
@@ -284,6 +292,7 @@ class Supervisor:
         all_states = (
             list(self._bess_states.values())
             + list(self._bess_controls.values())
+            + list(self._bess_updates.values())
             + list(self._genset_states.values())
             + list(self._pv_states.values())
         )
@@ -297,6 +306,7 @@ class Supervisor:
 
         self._bess_states.clear()
         self._bess_controls.clear()
+        self._bess_updates.clear()
         self._genset_states.clear()
         self._pv_states.clear()
 

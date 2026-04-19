@@ -19,7 +19,7 @@ import numpy as np
 
 from config.settings import load_config
 from core.registry import AssetRegistry
-from core.shm_manager import BESSControlBuffer, BESSSharedState
+from core.shm_manager import BESSControlBuffer, BESSSharedState, BESSUpdateBuffer
 
 logger = logging.getLogger(__name__)
 
@@ -176,10 +176,12 @@ def bess_physics_loop(
     # Attach to existing SHM (supervisor already allocated)
     state = BESSSharedState(bess_cfg, create=False)
     ctrl = BESSControlBuffer(bess_id, create=False)
+    update_buffer = BESSUpdateBuffer(bess_id, create=False)
 
     # Extract cell parameters
     capacity_ah = bess_cfg.cell_spec.nominal_capacity
     cell_current = ctrl.load_current_a / bess_cfg.num_strings
+    current_epoch = 0
 
     # Initialize state arrays
     init_state = bess_cfg.initial_state
@@ -219,6 +221,11 @@ def bess_physics_loop(
 
     try:
         while not shutdown_event.is_set():
+            buf_epoch = update_buffer.epoch
+            if buf_epoch > current_epoch:
+                current_epoch = buf_epoch
+                capacity_ah = update_buffer.capacity_ah
+
             current_array[:] = ctrl.load_current_a / bess_cfg.num_strings
             apply_cc_cv_throttling(current_array, state.voltages.array, v_max=4.2, taper_band=0.05)
             update_soc(state.soc.array, current_array, dt, capacity_ah)
@@ -245,4 +252,5 @@ def bess_physics_loop(
     finally:
         state.close()
         ctrl.close()
+        update_buffer.close()
         logger.info("Physics engine stopped for BESS '%s'", bess_id)
