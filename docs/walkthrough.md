@@ -1,6 +1,6 @@
 # Microgrid Digital Twin Walkthrough
 
-Welcome to the **High-Performance Python Microgrid Digital Twin** architecture project! This platform executes dynamic constraints bridging lightning-fast `Numpy` memory tracking structures natively alongside a heavy PyBAMM non-blocking processor execution pool.
+Welcome to the **High-Performance Python Microgrid Digital Twin** architecture project! This platform executes dynamic constraints bridging lightning-fast `Numpy` memory tracking structures natively.
 
 ## Table of Contents
 1. [Core Features](#core-features)
@@ -14,10 +14,7 @@ This system applies DOD (Data-Oriented Design) paradigms over a custom-written e
 ### ⚡ 1. The Physics "Hot Path" Engine
 Located in `src/engine/physics.py`, this is our **high-frequency loop (10-100Hz)**. It actively binds parallel strings using fully vectorized zero-copy matrices over continuous SHM. Current constraint checks rely solely on `np.clip` bounds with completely branchless execution formats guaranteeing strict cache-locality hits without `GC` pauses natively across 1,000+ local BESS cell structures simultaneously.
 
-### 🔋 2. PyBAMM "Shadow Twin" (Heavy Path)
-Found in `src/engine/shadow_twin.py`. Differential equation solving with native `Casadi` requires excessive cycle bandwidth. The supervisor forks a decoupled Shadow Twin parameterizing `SPMe (Single Particle Model with electrolyte bounds)`. Without utilizing native block-thread queues, the logic natively checks strict atomic `epoch` flags dynamically mapped over memory schemas bypassing local context switching logic!
-
-### 📊 3. Batched `db_writer` Persistence (CSV Matrix)
+### 📊 2. Batched `db_writer` Persistence (CSV Matrix)
 Residing within `src/services/db_writer.py`. The Database writer uses `np.reshape` hierarchy topology matrices executing strictly fast memory `memcpy` loops mapping exactly 10 loops interval before dynamically stringifying logic avoiding overhead bounds blockages to parallel files completely decoupled!
 
 ---
@@ -43,7 +40,7 @@ uv run python main.py --help
 ```text
 usage: main.py [-h] [config]
 
-Microgrid Digital Twin Orchestrator - High-Performance DOD implementation mapping PyBAMM heavily.
+Microgrid Digital Twin Orchestrator - High-Performance DOD edge execution bounds.
 
 positional arguments:
   config      Path to the system JSON configuration file. (default: src\config\user\simulation.json)

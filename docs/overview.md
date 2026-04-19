@@ -16,7 +16,6 @@ A running multi-process system where:
 2. A **Modbus/CAN Driver** (or a simulation stub) writes raw telemetry into SHM at 10–100 Hz.
 3. A **Physics Engine** reads telemetry from SHM, computes SoC/SoH/voltage via vectorized NumPy, and writes results back — all without copying data.
 4. An **Asynchronous Observer (DB Writer)** sits beside the physics engine, watching SHM through a one-way mirror. It copies cell-state arrays into process-local memory (``ndarray.copy()``), then performs slow CSV formatting on those local copies — never locking or blocking producers. It produces two output streams per BESS: a **Summary CSV** (PLC Dashboard metrics: total voltage, mean SoC, thermal extremes) and a **Detail CSV** (per-cell state).
-5. A **Shadow Twin** (PyBAMM) runs infrequent deep-fidelity simulations for health assessment.
 
 The system must support two **modes**: `SIMULATION` (synthetic data) and `TWIN` (real hardware via Modbus/CAN), selectable from config — and must **fail fast** with `MissingConfigurationError` if no valid config is provided.
 
@@ -36,7 +35,6 @@ The system must support two **modes**: `SIMULATION` (synthetic data) and `TWIN` 
 | `src/core/shm_manager.py` | ✅ Done | `SingleDataBuffer`, `BESSSharedState`, `GensetSharedState`, `PVSharedState`, `BESSControlBuffer` |
 | `src/core/__init__.py` | ✅ Done | Re-exports `AssetRegistry` + all SHM classes |
 | `src/engine/physics.py` | ✅ Done | Vectorized `update_soc`, `update_voltage_from_soc`, `update_temperature` + process loop |
-| `src/engine/shadow_twin.py` | ✅ Stub | Interface documented for future PyBAMM integration |
 | `src/drivers/modbus_engine.py` | ✅ Stub | Interface documented for TWIN mode |
 | `src/drivers/canbus_driver.py` | ✅ Stub | Interface documented |
 | `src/services/db_writer.py` | ✅ Done | Asynchronous Observer: zero-intrusion SHM snapshots, CSV validation, PLC header mapping |
@@ -85,10 +83,9 @@ digital-twin-dod/
 │   │   ├── __init__.py
 │   │   ├── modbus_engine.py  # (Phase 4)
 │   │   └── canbus_driver.py  # (Phase 4)
-│   ├── engine/               # Processors (Physics + Shadow Twin)
+│   ├── engine/               # Processors (Physics)
 │   │   ├── __init__.py
-│   │   ├── physics.py        # (Phase 4)
-│   │   └── shadow_twin.py    # (Phase 4)
+│   │   └── physics.py        # (Phase 4)
 │   ├── services/             # Consumers (DB Persistence)
 │   │   ├── __init__.py
 │   │   └── db_writer.py      # (Phase 4)

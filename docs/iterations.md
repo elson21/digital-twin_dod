@@ -87,3 +87,18 @@
 - Graceful shutdown via `multiprocessing.Event` instead of `terminate()` — workers clean up SHM handles
 - DB writer runs at 10× slower than physics engine (dt * 10)
 - 1000 iterations × 100k elements completes in <2s (vectorization verified)
+
+---
+
+## Phase 5: Architectural Decoupling (Real-time Edge Specialization)
+**Date:** 2026-04-19
+
+### Changes
+- Purged all `shadow_twin.py` elements integrating CasADi solvers and pybamm tracking natively.
+- Stripped lock-free atomic parameter overrides (e.g., `BESSUpdateBuffer`) linking PyBAMM directly into physics executions.
+- `main.py` cleared of CLI `shadow_twin` spawn constraints.
+
+### Design Decisions
+- Monolithic dual-execution patterns violate cache-locality via Casadi tree resolutions tracking the Heavy Path.
+- Realtime Edge tracking (100Hz) operates strictly independent on passive silicon, relying explicitly on lightweight linear C-math inside CPython constraints.
+- Future deep cycle chemical fading architectures formally decoupled strictly toward centralized Cloud mapping asynchronously avoiding thread blocks entirely.
