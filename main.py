@@ -30,7 +30,7 @@ def main() -> None:
     )
 
     parser = argparse.ArgumentParser(
-        description="Microgrid Digital Twin Orchestrator - High-Performance DOD implementation mapping PyBAMM heavily.",
+        description="Microgrid Digital Twin Orchestrator - High-Performance DOD edge execution bounds.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(

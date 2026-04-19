@@ -22,7 +22,6 @@ from core.registry import AssetRegistry
 from core.shm_manager import (
     BESSControlBuffer,
     BESSSharedState,
-    BESSUpdateBuffer,
     GensetSharedState,
     PVSharedState,
 )
@@ -54,7 +53,6 @@ class Supervisor:
         self._registry: AssetRegistry | None = None
         self._bess_states: dict[str, BESSSharedState] = {}
         self._bess_controls: dict[str, BESSControlBuffer] = {}
-        self._bess_updates: dict[str, BESSUpdateBuffer] = {}
         self._genset_states: dict[str, GensetSharedState] = {}
         self._pv_states: dict[str, PVSharedState] = {}
         self._workers: list[Process] = []
@@ -101,7 +99,6 @@ class Supervisor:
         dt: float = 0.1,
         db_output_dir: Path | None = None,
         enable_db_writer: bool = True,
-        enable_shadow_twin: bool = True,
     ) -> None:
         """Spawn simulation worker processes.
 
@@ -112,7 +109,6 @@ class Supervisor:
             dt: Physics engine time step in seconds (default 0.1 = 10 Hz).
             db_output_dir: Directory for CSV output.  Defaults to ``output/``.
             enable_db_writer: Whether to spawn the DB writer process.
-            enable_shadow_twin: Whether to spawn the heavy PyBAMM shadow twin process.
         """
         if not self._running:
             raise RuntimeError("Supervisor not started. Call start() first.")
@@ -122,7 +118,7 @@ class Supervisor:
 
         if self._config.mode == OperationMode.SIMULATION:
             self._spawn_simulation_workers(
-                dt, db_output_dir or Path("output"), enable_db_writer, enable_shadow_twin
+                dt, db_output_dir or Path("output"), enable_db_writer
             )
 
     def shutdown(self) -> None:
@@ -233,8 +229,6 @@ class Supervisor:
             names.extend(state.buffer_names)
         for ctrl in self._bess_controls.values():
             names.extend(ctrl.buffer_names)
-        for upd in self._bess_updates.values():
-            names.extend(upd.buffer_names)
         for state in self._genset_states.values():
             names.extend(state.buffer_names)
         for state in self._pv_states.values():
@@ -258,15 +252,11 @@ class Supervisor:
             ctrl.load_current_a = cfg.load_current_a
             self._bess_controls[bess_id] = ctrl
             
-            upd = BESSUpdateBuffer(bess_id, create=True)
-            upd.capacity_ah = cfg.cell_spec.nominal_capacity
-            self._bess_updates[bess_id] = upd
-            
             logger.info(
                 "Allocated SHM for BESS '%s': %d cells, %d buffers",
                 bess_id,
                 cfg.total_units,
-                len(state.buffer_names) + len(ctrl.buffer_names) + len(upd.buffer_names),
+                len(state.buffer_names) + len(ctrl.buffer_names),
             )
 
         for genset_id in self._registry.genset_ids:
@@ -294,7 +284,6 @@ class Supervisor:
         all_states = (
             list(self._bess_states.values())
             + list(self._bess_controls.values())
-            + list(self._bess_updates.values())
             + list(self._genset_states.values())
             + list(self._pv_states.values())
         )
@@ -308,7 +297,6 @@ class Supervisor:
 
         self._bess_states.clear()
         self._bess_controls.clear()
-        self._bess_updates.clear()
         self._genset_states.clear()
         self._pv_states.clear()
 
@@ -317,9 +305,9 @@ class Supervisor:
     # ------------------------------------------------------------------
 
     def _spawn_simulation_workers(
-        self, dt: float, output_dir: Path, enable_db_writer: bool, enable_shadow_twin: bool
+        self, dt: float, output_dir: Path, enable_db_writer: bool
     ) -> None:
-        """Spawn physics engine, DB writer, and Shadow Twin processes for SIMULATION mode."""
+        """Spawn physics engine and DB writer processes for SIMULATION mode."""
         assert self._registry is not None
 
         for bess_id in self._registry.bess_ids:
@@ -355,25 +343,6 @@ class Supervisor:
             p.start()
             self._workers.append(p)
             logger.info("Spawned DB writer (pid=%d)", p.pid)
-
-        if enable_shadow_twin:
-            from engine.shadow_twin import shadow_twin_loop
-
-            for bess_id in self._registry.bess_ids:
-                p = Process(
-                    target=shadow_twin_loop,
-                    args=(
-                        str(self._config_path),
-                        bess_id,
-                        5.0,  # Shadow Twin updates every 5.0 seconds
-                        self._shutdown_event,
-                    ),
-                    name=f"shadow_{bess_id}",
-                    daemon=True,
-                )
-                p.start()
-                self._workers.append(p)
-                logger.info("Spawned PyBAMM Shadow Twin for BESS '%s' (pid=%d)", bess_id, p.pid)
 
     def _stop_workers(self) -> None:
         """Gracefully stop all worker processes."""
