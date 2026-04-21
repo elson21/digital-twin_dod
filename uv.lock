@@ -32,6 +32,7 @@ source = { editable = "." }
 dependencies = [
     { name = "numpy" },
     { name = "pydantic" },
+    { name = "pymodbus" },
 ]
 
 [package.dev-dependencies]
@@ -43,6 +44,7 @@ dev = [
 requires-dist = [
     { name = "numpy", specifier = ">=2.4.4" },
     { name = "pydantic", specifier = ">=2.13.1" },
+    { name = "pymodbus", specifier = "==3.6.8" },
 ]
 
 [package.metadata.requires-dev]
@@ -167,6 +169,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c3/b2/bc9c9196916376152d655522fdcebac55e66de6603a76a02bca1b6414f6c/pygments-2.20.0.tar.gz", hash = "sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f", size = 4955991, upload-time = "2026-03-29T13:29:33.898Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/7e/a72dd26f3b0f4f2bf1dd8923c85f7ceb43172af56d63c7383eb62b332364/pygments-2.20.0-py3-none-any.whl", hash = "sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176", size = 1231151, upload-time = "2026-03-29T13:29:30.038Z" },
+]
+
+[[package]]
+name = "pymodbus"
+version = "3.6.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/62/c1/f18b090dcc45d34b6a0e3563acde71b407ef96a36fa965c508a84f755355/pymodbus-3.6.8.tar.gz", hash = "sha256:abb214716b56fc62bc0d5d9d964e2249439341746287e918d175f0e3ee241407", size = 191916, upload-time = "2024-04-14T08:23:23.099Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/35/19/a9d16f74548d6750acf6604fa74c2cd165b5bc955fe021bf5e1fa04acf14/pymodbus-3.6.8-py3-none-any.whl", hash = "sha256:8d55d1eaa8b7216d5da7492f5b610e8154d5d3bf6f4a5b3080319fd2c33b59b9", size = 185413, upload-time = "2024-04-14T08:23:21.209Z" },
 ]
 
 [[package]]

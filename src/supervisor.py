@@ -28,6 +28,7 @@ from core.shm_manager import (
 )
 from engine.physics import bess_physics_loop
 from services.db_writer import db_writer_loop
+from drivers.modbus_engine import modbus_server_loop
 
 logger = logging.getLogger(__name__)
 
@@ -321,7 +322,8 @@ class Supervisor:
         assert self._registry is not None
 
         for bess_id in self._registry.bess_ids:
-            p = Process(
+            # 1. Physics Engine
+            p_physics = Process(
                 target=bess_physics_loop,
                 args=(
                     str(self._config_path),
@@ -332,10 +334,28 @@ class Supervisor:
                 name=f"physics_{bess_id}",
                 daemon=True,
             )
-            p.start()
-            self._workers.append(p)
+            p_physics.start()
+            self._workers.append(p_physics)
+
+            # 2. Modbus Driver
+            p_modbus = Process(
+                target=modbus_server_loop,
+                args=(
+                    str(self._config_path),
+                    bess_id,
+                    5020,
+                    self._shutdown_event,
+                ),
+                name=f"modbus_{bess_id}",
+                daemon=True,
+            )
+            p_modbus.start()
+            self._workers.append(p_modbus)
             logger.info(
-                "Spawned physics worker for BESS '%s' (pid=%d)", bess_id, p.pid
+                "Spawned modbus worker for BESS '%s' (pid=%d)", bess_id, p_modbus.pid
+            )
+            logger.info(
+                "Spawned physics worker for BESS '%s' (pid=%d)", bess_id, p_physics.pid
             )
 
         if enable_db_writer:
