@@ -15,7 +15,6 @@ import logging
 import multiprocessing
 import time
 from multiprocessing import Process
-from pathlib import Path
 
 from config.settings import MicrogridConfig, OperationMode, load_config
 from core.registry import AssetRegistry
@@ -27,7 +26,8 @@ from core.shm_manager import (
     PVSharedState,
 )
 from engine.physics import bess_physics_loop
-from services.db_writer import db_writer_loop
+from services.mqtt_publisher import mqtt_publisher_loop
+from services.mqtt_subscriber import mqtt_subscriber_loop
 from drivers.modbus_engine import modbus_server_loop
 
 logger = logging.getLogger(__name__)
@@ -97,21 +97,16 @@ class Supervisor:
             len(self.all_buffer_names),
         )
 
-    def spawn_workers(
-        self,
-        dt: float = 0.1,
-        db_output_dir: Path | None = None,
-        enable_db_writer: bool = True,
-    ) -> None:
+    def spawn_workers(self, dt: float = 0.1) -> None:
         """Spawn simulation worker processes.
 
         Must be called after ``start()``.  In SIMULATION mode, spawns a
-        physics engine process per BESS unit and optionally a DB writer.
+        physics engine process, a Modbus driver process, and an MQTT
+        publisher process per BESS unit.
 
         Args:
             dt: Physics engine time step in seconds (default 0.1 = 10 Hz).
-            db_output_dir: Directory for CSV output.  Defaults to ``output/``.
-            enable_db_writer: Whether to spawn the DB writer process.
+                The MQTT publisher interval is derived as ``dt * 10``.
         """
         if not self._running:
             raise RuntimeError("Supervisor not started. Call start() first.")
@@ -120,9 +115,7 @@ class Supervisor:
         assert self._registry is not None
 
         if self._config.mode == OperationMode.SIMULATION:
-            self._spawn_simulation_workers(
-                dt, db_output_dir or Path("output"), enable_db_writer
-            )
+            self._spawn_simulation_workers(dt)
 
     def shutdown(self) -> None:
         """Orderly shutdown: signal workers → join → close/unlink all SHM.
@@ -149,7 +142,7 @@ class Supervisor:
             dt: Physics engine time step in seconds.
         """
         self.start()
-        self.spawn_workers(dt=dt)
+        self.spawn_workers(dt=dt)  # type: ignore[call-arg]
         try:
             logger.info("Supervisor running. Press Ctrl+C to stop.")
             while self._running:
@@ -315,10 +308,8 @@ class Supervisor:
     # Internal: Workers
     # ------------------------------------------------------------------
 
-    def _spawn_simulation_workers(
-        self, dt: float, output_dir: Path, enable_db_writer: bool
-    ) -> None:
-        """Spawn physics engine and DB writer processes for SIMULATION mode."""
+    def _spawn_simulation_workers(self, dt: float) -> None:
+        """Spawn physics engine, Modbus driver, MQTT publisher, and MQTT subscriber for SIMULATION mode."""
         assert self._registry is not None
 
         for bess_id in self._registry.bess_ids:
@@ -336,6 +327,9 @@ class Supervisor:
             )
             p_physics.start()
             self._workers.append(p_physics)
+            logger.info(
+                "Spawned physics worker for BESS '%s' (pid=%d)", bess_id, p_physics.pid
+            )
 
             # 2. Modbus Driver
             p_modbus = Process(
@@ -354,25 +348,45 @@ class Supervisor:
             logger.info(
                 "Spawned modbus worker for BESS '%s' (pid=%d)", bess_id, p_modbus.pid
             )
-            logger.info(
-                "Spawned physics worker for BESS '%s' (pid=%d)", bess_id, p_physics.pid
-            )
 
-        if enable_db_writer:
-            p = Process(
-                target=db_writer_loop,
+            # 3. MQTT Publisher (replaces DB writer)
+            p_mqtt = Process(
+                target=mqtt_publisher_loop,
                 args=(
                     str(self._config_path),
-                    str(output_dir),
-                    dt * 10,  # DB writer runs 10× slower than physics
+                    bess_id,
+                    "127.0.0.1",   # broker_host
+                    1883,           # broker_port
+                    dt * 10,        # interval — publishes at 10× slower cadence than physics
                     self._shutdown_event,
                 ),
-                name="db_writer",
+                name=f"mqtt_pub_{bess_id}",
                 daemon=True,
             )
-            p.start()
-            self._workers.append(p)
-            logger.info("Spawned DB writer (pid=%d)", p.pid)
+            p_mqtt.start()
+            self._workers.append(p_mqtt)
+            logger.info(
+                "Spawned MQTT publisher for BESS '%s' (pid=%d)", bess_id, p_mqtt.pid
+            )
+
+            # 4. MQTT Subscriber (Cloud-to-Edge feedback loop)
+            p_sub = Process(
+                target=mqtt_subscriber_loop,
+                args=(
+                    str(self._config_path),
+                    bess_id,
+                    "127.0.0.1",  # broker_host
+                    1883,          # broker_port
+                    self._shutdown_event,
+                ),
+                name=f"mqtt_sub_{bess_id}",
+                daemon=True,
+            )
+            p_sub.start()
+            self._workers.append(p_sub)
+            logger.info(
+                "Spawned MQTT subscriber for BESS '%s' (pid=%d)", bess_id, p_sub.pid
+            )
 
     def _stop_workers(self) -> None:
         """Gracefully stop all worker processes."""
